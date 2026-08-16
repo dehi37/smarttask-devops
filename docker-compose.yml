@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  smarttask-postgres:
+    image: postgres:15-alpine
+    container_name: smarttask-postgres
+    environment:
+      POSTGRES_USER: smartuser
+      POSTGRES_PASSWORD: smartpass
+      POSTGRES_DB: smarttask_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - smarttask-net
+
+  smarttask-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: smarttask-backend
+    ports:
+      - "5000:5000"
+    environment:
+      POSTGRES_HOST: smarttask-postgres
+      POSTGRES_USER: smartuser
+      POSTGRES_PASSWORD: smartpass
+      POSTGRES_DB: smarttask_db
+    depends_on:
+      - smarttask-postgres
+    networks:
+      - smarttask-net
+
+  smarttask-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: smarttask-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - smarttask-backend
+    networks:
+      - smarttask-net
+
+volumes:
+  postgres_data:
+
+networks:
+  smarttask-net:
+    driver: bridge
