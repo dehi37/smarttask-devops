@@ -2,51 +2,54 @@ pipeline {
     agent any
 
     environment {
-        APP_NAME = 'smarttask'
-        REGISTRY = 'docker.io/votre-user-dockerhub'
+        DOCKER_USER = 'dehilegod'
+        BACKEND_IMAGE = "${DOCKER_USER}/smarttask-backend"
+        FRONTEND_IMAGE = "${DOCKER_USER}/smarttask-frontend"
     }
 
     stages {
-        stage('Checkout') {
+        stage('Récupération du Code') {
             steps {
-                git branch: "${env.BRANCH_NAME}", url: 'https://github.com/dehi37/smarttask-devops.git'
+                echo "Checkout de la branche ${env.BRANCH_NAME}..."
+                checkout scm
             }
         }
 
-        stage('Code Analysis / Lint') {
-            steps {
-                echo 'Analyse du code source JavaScript/SQL...'
-            }
-        }
-
-        stage('Build Docker Images') {
+        stage('Construction des Images Docker') {
             steps {
                 script {
-                    sh 'docker build -f Dockerfile.backend -t ${REGISTRY}/${APP_NAME}-backend:${env.BRANCH_NAME} .'
-                    sh 'docker build -f Dockerfile.frontend -t ${REGISTRY}/${APP_NAME}-frontend:${env.BRANCH_NAME} .'
+                    echo "Construction des images backend et frontend..."
+                    sh "docker build -f Dockerfile.backend -t ${BACKEND_IMAGE}:${env.BRANCH_NAME}-${BUILD_NUMBER} -t ${BACKEND_IMAGE}:${env.BRANCH_NAME}-latest ."
+                    sh "docker build -f Dockerfile.frontend -t ${FRONTEND_IMAGE}:${env.BRANCH_NAME}-${BUILD_NUMBER} -t ${FRONTEND_IMAGE}:${env.BRANCH_NAME}-latest ."
                 }
             }
         }
 
-        stage('Test Infrastructure') {
+        stage('Publication sur Docker Hub') {
             steps {
-                sh 'docker-compose config'
-            }
-        }
-
-        stage('Deploy (Production Only)') {
-            when {
-                branch 'prod'
-            }
-            steps {
-                sh 'docker-compose down'
-                sh 'docker-compose up -d --build'
+                script {
+                    echo "Connexion et publication des images..."
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_HUB_USER', passwordVariable: 'DOCKER_HUB_PASS')]) {
+                        sh "echo \$DOCKER_HUB_PASS | docker login -u \$DOCKER_HUB_USER --password-stdin"
+                        sh "docker push ${BACKEND_IMAGE}:${env.BRANCH_NAME}-${BUILD_NUMBER}"
+                        sh "docker push ${BACKEND_IMAGE}:${env.BRANCH_NAME}-latest"
+                        sh "docker push ${FRONTEND_IMAGE}:${env.BRANCH_NAME}-${BUILD_NUMBER}"
+                        sh "docker push ${FRONTEND_IMAGE}:${env.BRANCH_NAME}-latest"
+                    }
+                }
             }
         }
     }
 
     post {
+        success {
+            echo "Pipeline exécuté avec succès sur la branche ${env.BRANCH_NAME} !"
+        }
+        failure {
+            echo "Échec du pipeline ! Consultez la Console Output."
+        }
         always {
+            sh "docker logout || true"
             cleanWs()
         }
     }
