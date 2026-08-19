@@ -1,5 +1,9 @@
 pipeline {
-    agent any
+    agent {
+        node {
+            label 'docker-agent'
+        }
+    }
 
     environment {
         DOCKER_USER    = 'dehilegod'
@@ -12,25 +16,40 @@ pipeline {
         stage('Construction des Images Docker') {
             steps {
                 script {
-                    echo "Construction des images..."
+                    echo "Construction des images backend et frontend..."
                     sh "docker build -f Dockerfile.backend -t ${BACKEND_IMAGE}:${env.BRANCH_NAME}-${BUILD_NUMBER} -t ${BACKEND_IMAGE}:${env.BRANCH_NAME}-latest ."
                     sh "docker build -f Dockerfile.frontend -t ${FRONTEND_IMAGE}:${env.BRANCH_NAME}-${BUILD_NUMBER} -t ${FRONTEND_IMAGE}:${env.BRANCH_NAME}-latest ."
                 }
             }
         }
+
         stage('Publication sur Docker Hub') {
             steps {
                 script {
-                    echo "Publication..."
-                    withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_HUB_USER', passwordVariable: 'DOCKER_HUB_PASS')]) {
+                    echo "Connexion et publication des images sur Docker Hub..."
+                    withCredentials([usernamePassword(
+                        credentialsId: 'dockerhub-credentials', 
+                        usernameVariable: 'DOCKER_HUB_USER', 
+                        passwordVariable: 'DOCKER_HUB_PASS'
+                    )]) {
                         sh 'echo "$DOCKER_HUB_PASS" | docker login -u "$DOCKER_HUB_USER" --password-stdin'
+                        
+                        // Push des images Backend
                         sh "docker push ${BACKEND_IMAGE}:${env.BRANCH_NAME}-${BUILD_NUMBER}"
                         sh "docker push ${BACKEND_IMAGE}:${env.BRANCH_NAME}-latest"
+                        
+                        // Push des images Frontend
                         sh "docker push ${FRONTEND_IMAGE}:${env.BRANCH_NAME}-${BUILD_NUMBER}"
                         sh "docker push ${FRONTEND_IMAGE}:${env.BRANCH_NAME}-latest"
                     }
                 }
             }
+        }
+    }
+
+    post {
+        always {
+            sh 'docker logout || true'
         }
     }
 }
