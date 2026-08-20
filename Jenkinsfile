@@ -1,46 +1,73 @@
 pipeline {
     agent {
-        node {
-            label 'docker-agent'
-        }
+        label 'docker-agent'
     }
 
     environment {
-        DOCKER_USER    = 'dehilegod'
-        DOCKER_REPO    = 'repsmarttask'
-        BACKEND_IMAGE  = "${DOCKER_USER}/${DOCKER_REPO}-backend"
-        FRONTEND_IMAGE = "${DOCKER_USER}/${DOCKER_REPO}-frontend"
+        // Définition du registre Docker (Docker Hub)
+        REGISTRY = 'docker.io/repsmarttask'
+        DOCKERHUB_USER = 'dehilegod'
+        DOCKER_CREDENTIALS_ID = 'dockerhub-credentials'
+        
+        // Nom complet des images avec le Registre
+        BACKEND_IMAGE  = "${REGISTRY}/${DOCKERHUB_USER}/repsmarttask-backend"
+        FRONTEND_IMAGE = "${REGISTRY}/${DOCKERHUB_USER}/repsmarttask-frontend"
+        
+        // Volume persistant pour la BDD
+        POSTGRES_VOLUME = 'smarttask_postgres_data'
     }
 
     stages {
-        stage('Construction des Images Docker') {
+        stage('Checkout Source') {
+            steps {
+                echo "--> Récupération du code source depuis la branche : ${BRANCH_NAME}"
+                checkout scm
+            }
+        }
+
+        stage('Prepare Docker Infrastructure & Volumes') {
             steps {
                 script {
-                    echo "Construction des images backend et frontend..."
-                    sh "docker build -f Dockerfile.backend -t ${BACKEND_IMAGE}:${env.BRANCH_NAME}-${BUILD_NUMBER} -t ${BACKEND_IMAGE}:${env.BRANCH_NAME}-latest ."
-                    sh "docker build -f Dockerfile.frontend -t ${FRONTEND_IMAGE}:${env.BRANCH_NAME}-${BUILD_NUMBER} -t ${FRONTEND_IMAGE}:${env.BRANCH_NAME}-latest ."
+                    echo "--> Vérification et création du volume persistant..."
+                    sh "docker volume create ${POSTGRES_VOLUME} || true"
                 }
             }
         }
 
-        stage('Publication sur Docker Hub') {
+        stage('Build & Tag Docker Images') {
             steps {
                 script {
-                    echo "Connexion et publication des images sur Docker Hub..."
-                    withCredentials([usernamePassword(
-                        credentialsId: 'dockerhub-credentials', 
-                        usernameVariable: 'DOCKER_HUB_USER', 
-                        passwordVariable: 'DOCKER_HUB_PASS'
-                    )]) {
-                        sh 'echo "$DOCKER_HUB_PASS" | docker login -u "$DOCKER_HUB_USER" --password-stdin'
+                    def gitCommitHash = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                    
+                    if (BRANCH_NAME == 'dev') {
+                        echo "--> Construction pour l'environnement DEV sur ${REGISTRY}..."
+                        sh "docker build -t ${BACKEND_IMAGE}:dev-latest -t ${BACKEND_IMAGE}:dev-${gitCommitHash} ./backend"
+                        sh "docker build -t ${FRONTEND_IMAGE}:dev-latest -t ${FRONTEND_IMAGE}:dev-${gitCommitHash} ./frontend"
+                    } 
+                    else if (BRANCH_NAME == 'prod') {
+                        echo "--> Construction pour l'environnement PROD sur ${REGISTRY}..."
+                        sh "docker build -t ${BACKEND_IMAGE}:latest -t ${BACKEND_IMAGE}:prod-latest -t ${BACKEND_IMAGE}:${gitCommitHash} ./backend"
+                        sh "docker build -t ${FRONTEND_IMAGE}:latest -t ${FRONTEND_IMAGE}:prod-latest -t ${FRONTEND_IMAGE}:${gitCommitHash} ./frontend"
+                    }
+                    else {
+                        echo "--> Construction pour branche secondaire (${BRANCH_NAME})..."
+                        sh "docker build -t ${BACKEND_IMAGE}:${BRANCH_NAME} ./backend"
+                        sh "docker build -t ${FRONTEND_IMAGE}:${BRANCH_NAME} ./frontend"
+                    }
+                }
+            }
+        }
+
+        stage('Docker Hub Authentication & Push') {
+            steps {
+                script {
+                    echo "--> Connexion au registre ${REGISTRY} et publication des images..."
+                    withCredentials([usernamePassword(credentialsId: DOCKER_CREDENTIALS_ID, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                        sh "echo \$DOCKER_PASS | docker login ${REGISTRY} -u \$DOCKER_USER --password-stdin"
                         
-                        // Push des images Backend
-                        sh "docker push ${BACKEND_IMAGE}:${env.BRANCH_NAME}-${BUILD_NUMBER}"
-                        sh "docker push ${BACKEND_IMAGE}:${env.BRANCH_NAME}-latest"
-                        
-                        // Push des images Frontend
-                        sh "docker push ${FRONTEND_IMAGE}:${env.BRANCH_NAME}-${BUILD_NUMBER}"
-                        sh "docker push ${FRONTEND_IMAGE}:${env.BRANCH_NAME}-latest"
+                        // Push des images vers le registre
+                        sh "docker push --all-tags ${BACKEND_IMAGE}"
+                        sh "docker push --all-tags ${FRONTEND_IMAGE}"
                     }
                 }
             }
@@ -49,7 +76,14 @@ pipeline {
 
     post {
         always {
-            sh 'docker logout || true'
+            echo "--> Déconnexion du registre Docker..."
+            sh "docker logout ${REGISTRY}"
+        }
+        success {
+            echo "Pipeline exécuté avec succès pour la branche ${BRANCH_NAME} !"
+        }
+        failure {
+            echo "ERREUR : Le pipeline a échoué."
         }
     }
 }
