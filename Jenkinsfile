@@ -48,7 +48,6 @@ pipeline {
                             sh "docker build -t ${FRONTEND_IMAGE}:latest -t ${FRONTEND_IMAGE}:prod-latest -t ${FRONTEND_IMAGE}:${gitCommitHash} ./frontend"
                         }
                         if (fileExists('./db/Dockerfile')) {
-                            sh "docker build -t ${DB_IMAGE}:Dockerfile')) {
                             sh "docker build -t ${DB_IMAGE}:latest -t ${DB_IMAGE}:prod-latest -t ${DB_IMAGE}:${gitCommitHash} ./db"
                         }
                     }
