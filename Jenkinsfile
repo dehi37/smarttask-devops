@@ -70,9 +70,22 @@ pipeline {
         }
     }
 
+    
     post {
         always {
-            sh "docker logout ${REGISTRY}"
+            script {
+                echo "--> Déconnexion du registre et nettoyage des images locales..."
+                sh "docker logout ${REGISTRY}"
+
+                // Supprime les images locales tagguées pour libérer l'espace disque du Serveur 1
+                sh "docker rmi -f ${BACKEND_IMAGE}:latest ${BACKEND_IMAGE}:${BUILD_NUMBER} || true"
+                sh "docker rmi -f ${FRONTEND_IMAGE}:latest ${FRONTEND_IMAGE}:${BUILD_NUMBER} || true"
+                sh "docker rmi -f ${DB_IMAGE}:latest ${DB_IMAGE}:${BUILD_NUMBER} || true"
+
+                // Nettoie les calques temporaires restants
+                sh "docker image prune -f"
+            }
         }
     }
+}
 }
