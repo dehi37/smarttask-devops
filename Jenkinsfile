@@ -70,22 +70,20 @@ pipeline {
         }
     }
 
-    
     post {
         always {
             script {
                 echo "--> Déconnexion du registre et nettoyage des images locales..."
                 sh "docker logout ${REGISTRY}"
 
-                // Supprime les images locales tagguées pour libérer l'espace disque du Serveur 1
-                sh "docker rmi -f ${BACKEND_IMAGE}:latest ${BACKEND_IMAGE}:${BUILD_NUMBER} || true"
-                sh "docker rmi -f ${FRONTEND_IMAGE}:latest ${FRONTEND_IMAGE}:${BUILD_NUMBER} || true"
-                sh "docker rmi -f ${DB_IMAGE}:latest ${DB_IMAGE}:${BUILD_NUMBER} || true"
+                // Supprime toutes les images locales créées pour libérer l'espace disque du Serveur Jenkins
+                sh "docker rmi -f \$(docker images -q ${BACKEND_IMAGE}) || true"
+                sh "docker rmi -f \$(docker images -q ${FRONTEND_IMAGE}) || true"
+                sh "docker rmi -f \$(docker images -q ${DB_IMAGE}) || true"
 
-                // Nettoie les calques temporaires restants
+                // Nettoie les calques temporaires orphelins (dangling images)
                 sh "docker image prune -f"
             }
         }
     }
-}
 }
