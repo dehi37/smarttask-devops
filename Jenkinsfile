@@ -28,16 +28,28 @@ pipeline {
                     if (BRANCH_NAME == 'dev') {
                         echo "--> Build des images pour l'environnement DEV..."
                         
-                        sh "docker build -t ${BACKEND_IMAGE}:dev-latest -t ${BACKEND_IMAGE}:dev-${gitCommitHash} ./backend"
-                        sh "docker build -t ${FRONTEND_IMAGE}:dev-latest -t ${FRONTEND_IMAGE}:dev-${gitCommitHash} ./frontend"
-                        sh "docker build -t ${DB_IMAGE}:dev-latest -t ${DB_IMAGE}:dev-${gitCommitHash} ./db"
+                        if (fileExists('./backend/Dockerfile')) {
+                            sh "docker build -t ${BACKEND_IMAGE}:dev-latest -t ${BACKEND_IMAGE}:dev-${gitCommitHash} ./backend"
+                        }
+                        if (fileExists('./frontend/Dockerfile')) {
+                            sh "docker build -t ${FRONTEND_IMAGE}:dev-latest -t ${FRONTEND_IMAGE}:dev-${gitCommitHash} ./frontend"
+                        }
+                        if (fileExists('./db/Dockerfile')) {
+                            sh "docker build -t ${DB_IMAGE}:dev-latest -t ${DB_IMAGE}:dev-${gitCommitHash} ./db"
+                        }
                     } 
                     else if (BRANCH_NAME == 'prod') {
                         echo "--> Build des images pour l'environnement PROD..."
                         
-                        sh "docker build -t ${BACKEND_IMAGE}:latest -t ${BACKEND_IMAGE}:prod-latest -t ${BACKEND_IMAGE}:${gitCommitHash} ./backend"
-                        sh "docker build -t ${FRONTEND_IMAGE}:latest -t ${FRONTEND_IMAGE}:prod-latest -t ${FRONTEND_IMAGE}:${gitCommitHash} ./frontend"
-                        sh "docker build -t ${DB_IMAGE}:latest -t ${DB_IMAGE}:prod-latest -t ${DB_IMAGE}:${gitCommitHash} ./db"
+                        if (fileExists('./backend/Dockerfile')) {
+                            sh "docker build -t ${BACKEND_IMAGE}:latest -t ${BACKEND_IMAGE}:prod-latest -t ${BACKEND_IMAGE}:${gitCommitHash} ./backend"
+                        }
+                        if (fileExists('./frontend/Dockerfile')) {
+                            sh "docker build -t ${FRONTEND_IMAGE}:latest -t ${FRONTEND_IMAGE}:prod-latest -t ${FRONTEND_IMAGE}:${gitCommitHash} ./frontend"
+                        }
+                        if (fileExists('./db/Dockerfile')) {
+                            sh "docker build -t ${DB_IMAGE}:latest -t ${DB_IMAGE}:prod-latest -t ${DB_IMAGE}:${gitCommitHash} ./db"
+                        }
                     }
                 }
             }
@@ -54,27 +66,35 @@ pipeline {
                         def gitCommitHash = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
 
                         if (BRANCH_NAME == 'dev') {
-                            sh "docker push ${BACKEND_IMAGE}:dev-latest"
-                            sh "docker push ${BACKEND_IMAGE}:dev-${gitCommitHash}"
-
-                            sh "docker push ${FRONTEND_IMAGE}:dev-latest"
-                            sh "docker push ${FRONTEND_IMAGE}:dev-${gitCommitHash}"
-
-                            sh "docker push ${DB_IMAGE}:dev-latest"
-                            sh "docker push ${DB_IMAGE}:dev-${gitCommitHash}"
+                            if (fileExists('./backend/Dockerfile')) {
+                                sh "docker push ${BACKEND_IMAGE}:dev-latest"
+                                sh "docker push ${BACKEND_IMAGE}:dev-${gitCommitHash}"
+                            }
+                            if (fileExists('./frontend/Dockerfile')) {
+                                sh "docker push ${FRONTEND_IMAGE}:dev-latest"
+                                sh "docker push ${FRONTEND_IMAGE}:dev-${gitCommitHash}"
+                            }
+                            if (fileExists('./db/Dockerfile')) {
+                                sh "docker push ${DB_IMAGE}:dev-latest"
+                                sh "docker push ${DB_IMAGE}:dev-${gitCommitHash}"
+                            }
                         }
                         else if (BRANCH_NAME == 'prod') {
-                            sh "docker push ${BACKEND_IMAGE}:latest"
-                            sh "docker push ${BACKEND_IMAGE}:prod-latest"
-                            sh "docker push ${BACKEND_IMAGE}:${gitCommitHash}"
-
-                            sh "docker push ${FRONTEND_IMAGE}:latest"
-                            sh "docker push ${FRONTEND_IMAGE}:prod-latest"
-                            sh "docker push ${FRONTEND_IMAGE}:${gitCommitHash}"
-
-                            sh "docker push ${DB_IMAGE}:latest"
-                            sh "docker push ${DB_IMAGE}:prod-latest"
-                            sh "docker push ${DB_IMAGE}:${gitCommitHash}"
+                            if (fileExists('./backend/Dockerfile')) {
+                                sh "docker push ${BACKEND_IMAGE}:latest"
+                                sh "docker push ${BACKEND_IMAGE}:prod-latest"
+                                sh "docker push ${BACKEND_IMAGE}:${gitCommitHash}"
+                            }
+                            if (fileExists('./frontend/Dockerfile')) {
+                                sh "docker push ${FRONTEND_IMAGE}:latest"
+                                sh "docker push ${FRONTEND_IMAGE}:prod-latest"
+                                sh "docker push ${FRONTEND_IMAGE}:${gitCommitHash}"
+                            }
+                            if (fileExists('./db/Dockerfile')) {
+                                sh "docker push ${DB_IMAGE}:latest"
+                                sh "docker push ${DB_IMAGE}:prod-latest"
+                                sh "docker push ${DB_IMAGE}:${gitCommitHash}"
+                            }
                         }
                     }
                 }
