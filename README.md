@@ -177,7 +177,7 @@ git checkout dev
 
 ## ✅ Test Final et Validation
 
-Dans cette phase finale de validation sur le serveur client, nous déployons la stack SmartTask à l'aide du fichier `docker-compose.yml` configuré pour récupérer les images publiées sur Docker Hub. Nous vérifions la création des images, l'état d'exécution des conteneurs, puis nous appliquons le script Post-Install de hachage des mots de passe avant de valider l'accès Web depuis le navigateur.
+Dans cette phase finale de validation sur le serveur client, nous utilisons le fichier `docker-compose-test-client.yml`, qui est par la suite renommé en `docker-compose.yml` pour déployer l'intégralité de la stack SmartTask en récupérant les images publiées sur Docker Hub. Nous vérifions ensuite la création des images et l'état d'exécution des conteneurs, puis nous appliquons les commandes de hachage des mots de passe avant de valider l'accès Web depuis le navigateur.
 
 ### 1. Fichier de configuration `docker-compose.yml` (Serveur Client)
 
