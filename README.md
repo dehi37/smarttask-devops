@@ -172,3 +172,120 @@ git merge dev
 git push origin prod
 git checkout dev
 ```
+
+---
+
+## ✅ Test Final et Validation
+
+Dans cette phase finale de validation sur le serveur client, nous déployons la stack SmartTask à l'aide du fichier `docker-compose.yml` configuré pour récupérer les images publiées sur Docker Hub. Nous vérifions la création des images, l'état d'exécution des conteneurs, puis nous appliquons le script Post-Install de hachage des mots de passe avant de valider l'accès Web depuis le navigateur.
+
+### 1. Fichier de configuration `docker-compose.yml` (Serveur Client)
+
+Le fichier `docker-compose.yml` présent sur le serveur client s'appuie sur les images pré-construites et hébergées sur Docker Hub :
+
+```yaml
+version: '3.8'
+
+services:
+  frontend:
+    image: dehilegod/repsmarttask-frontend:latest
+    container_name: smarttask-frontend
+    ports:
+      - "8082:80"
+    restart: always
+    networks:
+      - smarttask-net
+    depends_on:
+      - backend
+
+  backend:
+    image: dehilegod/repsmarttask-backend:latest
+    container_name: smarttask-backend
+    ports:
+      - "5000:5000"
+    environment:
+      - POSTGRES_HOST=smarttask-postgres
+      - POSTGRES_USER=smartuser
+      - POSTGRES_PASSWORD=smartpass
+      - POSTGRES_DB=smarttask_db
+      - DB_HOST=smarttask-postgres
+      - DB_USER=smartuser
+      - DB_PASSWORD=smartpass
+      - DB_NAME=smarttask_db
+    restart: always
+    networks:
+      - smarttask-net
+    depends_on:
+      - postgres
+
+  postgres:
+    image: dehilegod/repsmarttask-db:latest
+    container_name: smarttask-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=smartuser
+      - POSTGRES_PASSWORD=smartpass
+      - POSTGRES_DB=smarttask_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+    networks:
+      - smarttask-net
+
+networks:
+  smarttask-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+```
+
+### 2. Déploiement et vérification des images Docker
+
+Après le lancement des services via la commande `docker compose up -d`, nous contrôlons les images qui ont été téléchargées et créées localement sur le serveur :
+
+```bash
+docker images
+```
+
+**Résultat attendu** : Affichage des images `dehilegod/repsmarttask-frontend`, `dehilegod/repsmarttask-backend` et `dehilegod/repsmarttask-db`.
+
+### 3. Vérification des conteneurs en cours d'exécution
+
+Nous vérifions l'état opérationnel des conteneurs déployés :
+
+```bash
+docker ps
+```
+
+**Résultat attendu** : Trois conteneurs doivent être au statut `Up` :
+
+* `smarttask-frontend` (Exposé sur le port `8082:80`)
+* `smarttask-backend` (Exposé sur le port `5000:5000`)
+* `smarttask-postgres` (Exposé sur le port `5432:5432`)
+
+### 4. Hachage des mots de passe en base de données
+
+Après l'initialisation des conteneurs, nous exécutons les commandes suivantes pour générer dynamiquement l'empreinte sécurisée de `password123` via la librairie `bcryptjs` du backend, puis mettre à jour la base PostgreSQL :
+
+```bash
+# 1. Génération du hash du mot de passe 'password123'
+HASH=$(docker exec smarttask-backend node -e 'console.log(require("bcryptjs").hashSync("password123", 10))')
+
+# 2. Injection de la mise à jour dans PostgreSQL
+docker exec -i smarttask-postgres psql -U smartuser -d smarttask_db -c "UPDATE users SET password = '$HASH';"
+```
+
+### 5. Validation de l'accès navigateur
+
+L'application est entièrement validée en accédant à l'interface depuis un poste client :
+
+* **URL d'accès** : `http://192.168.20.21:8082`
+* **Mot de passe réinitialisé** : `password123`
+
+### 6. Synthèse des résultats
+
+1. **Stack Docker Compose** : Les services Frontend, Backend et PostgreSQL démarrent en toute autonomie via les images du Docker Hub.
+2. **Post-traitement SQL** : Le script de hachage s'exécute à travers les conteneurs et met à jour la table `users` en toute sécurité.
+3. **Accès Web** : L'application Web répond correctement sur l'IP du serveur au port `8082`.
