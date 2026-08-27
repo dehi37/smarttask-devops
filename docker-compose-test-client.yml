@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  frontend:
+    image: dehilegod/repsmarttask-frontend:latest
+    container_name: smarttask-frontend
+    ports:
+      - "8082:80"
+    restart: always
+    networks:
+      - smarttask-net
+    depends_on:
+      - backend
+
+  backend:
+    image: dehilegod/repsmarttask-backend:latest
+    container_name: smarttask-backend
+    ports:
+      - "5000:5000"
+    environment:
+      - POSTGRES_HOST=smarttask-postgres
+      - POSTGRES_USER=smartuser
+      - POSTGRES_PASSWORD=smartpass
+      - POSTGRES_DB=smarttask_db
+      - DB_HOST=smarttask-postgres
+      - DB_USER=smartuser
+      - DB_PASSWORD=smartpass
+      - DB_NAME=smarttask_db
+    restart: always
+    networks:
+      - smarttask-net
+    depends_on:
+      - postgres
+
+  postgres:
+    image: dehilegod/repsmarttask-db:latest
+    container_name: smarttask-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=smartuser
+      - POSTGRES_PASSWORD=smartpass
+      - POSTGRES_DB=smarttask_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+    networks:
+      - smarttask-net
+
+networks:
+  smarttask-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
